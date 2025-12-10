@@ -1,0 +1,65 @@
+* Rutina final para informar de aquellas encuestas cuyo cronomarcador es el más reciente por cada servicio
+TYPES: begin of str_ind,
+       RECORD type RSARECORD,
+       service TYPE /BIC/OISAEROBJID,
+       crono TYPE /BIC/OISADERRCRC,
+       icount TYPE i,
+       end of str_ind.
+
+DATA: it_result TYPE TABLE OF str_ind,
+      wa_result LIKE LINE OF it_result,
+      lv_service TYPE /BIC/OISAEROBJID,
+      lv_crono TYPE /BIC/OISADERRCRC,
+      lv_count TYPE i.
+
+SELECT RECORD, /BIC/SAEROBJID, /BIC/SADERRCRC
+FROM @result_package AS RPAC
+order by /BIC/SAEROBJID ascending,
+/BIC/SADERRCRC descending
+INTO TABLE @it_result.
+
+CLEAR: lv_service, lv_crono, lv_count.
+
+LOOP AT it_result INTO wa_result.
+    if lv_service is initial.
+        wa_result-icount = 1.
+    else.
+        if lv_service EQ wa_result-service.
+            if lv_crono EQ wa_result-crono.
+                if lv_count = 0.
+                    wa_result-icount = 0.
+                else.
+                    wa_result-icount = 1.
+                endif.
+            else.
+                wa_result-icount = 0.
+            endif.
+        else.
+            wa_result-icount = 1.
+        endif.
+    endif.
+
+    lv_service = wa_result-service.
+    lv_crono = wa_result-crono.
+    lv_count = wa_result-icount.
+
+    modify it_result from wa_result.
+endloop.
+
+clear wa_result.
+
+sort it_result by record ascending.
+
+LOOP AT result_package assigning <RESULT_FIELDS>.
+    READ TABLE it_result INTO wa_result with key record = <RESULT_FIELDS>-record.
+        if sy-subrc = 0.
+            if wa_result-icount = 1.
+                <RESULT_FIELDS>-/bic/sadatrcin = 'X'.
+            else.
+                <RESULT_FIELDS>-/bic/sadatrcin = ''.
+            endif.
+        endif.
+endloop.
+
+**** end of routine - insert your code only before this line        ****
+ENDMETHOD.
